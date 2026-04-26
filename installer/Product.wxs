@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <!--
+    UpgradeCode - NEVER change across versions.
+    ProductCode - Set to "*" so WiX generates a new GUID each build.
+    Version     - Passed from build.ps1 via -dVersion=x.y.z
+  -->
+  <Product Id="*"
+           Name="LoopcastUA"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="Loopcast"
+           UpgradeCode="{F3A7B2E1-C4D5-4F6A-9B8C-D7E0F1A2B3C4}">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Platform="x64"
+             Description="LoopcastUA $(var.Version)" />
+
+    <!-- Remove previous version before installing new one -->
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer version of LoopcastUA is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- ===== Properties ===== -->
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <!-- Optional "launch after install" checkbox on the Finish page -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+              Value="Launch LoopcastUA after installation" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+    <!-- ===== Directory structure ===== -->
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="LoopcastUA" />
+      </Directory>
+
+      <Directory Id="CommonAppDataFolder">
+        <Directory Id="CONFIGFOLDER" Name="LoopcastUA" />
+      </Directory>
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppMenuFolder" Name="LoopcastUA" />
+      </Directory>
+
+    </Directory>
+
+    <!-- ===== Components ===== -->
+
+    <!--
+      %ProgramData%\PcAudioSipBridge\ directory ACL:
+      Grant Users group write access so the app can save config.json
+      without requiring the user to run as Administrator.
+    -->
+    <DirectoryRef Id="CONFIGFOLDER">
+      <Component Id="CompConfigDir"
+                 Guid="{A3C5E7F9-B4D6-4E8F-9A0B-C5D7E9FB0001}">
+        <CreateFolder>
+          <Permission User="Users"
+                      GenericRead="yes"
+                      GenericWrite="yes"
+                      GenericExecute="yes"
+                      Delete="yes"
+                      DeleteChild="yes" />
+        </CreateFolder>
+      </Component>
+    </DirectoryRef>
+
+    <!-- Start menu shortcuts -->
+    <DirectoryRef Id="AppMenuFolder">
+      <Component Id="CompShortcuts"
+                 Guid="{D0C2E4F6-B1D3-4C5E-7A9B-C3E5F7091003}">
+        <Shortcut Id="ShortcutApp"
+                  Name="LoopcastUA"
+                  Description="LoopcastUA"
+                  Target="[INSTALLFOLDER]LoopcastUA.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <Shortcut Id="ShortcutUninstall"
+                  Name="Uninstall LoopcastUA"
+                  Target="[SystemFolder]msiexec.exe"
+                  Arguments="/x [ProductCode]" />
+        <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
+        <!-- Registry key path (required when component has only non-file content) -->
+        <RegistryValue Root="HKCU"
+                       Key="Software\PcAudioSipBridge"
+                       Name="ShortcutsInstalled"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Windows startup registration in HKCU\...\Run -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="CompStartup"
+                 Guid="{C9B1D3E5-A0C2-4B3D-6E8F-B4D6E8FA0004}">
+        <RegistryValue Root="HKCU"
+                       Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                       Name="LoopcastUA"
+                       Type="string"
+                       Value="[INSTALLFOLDER]LoopcastUA.exe"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- ===== Feature ===== -->
+
+    <Feature Id="MainFeature"
+             Title="LoopcastUA"
+             Description="Main application and runtime files"
+             Level="1"
+             ConfigurableDirectory="INSTALLFOLDER">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="CompConfigDir" />
+      <ComponentRef Id="CompShortcuts" />
+      <ComponentRef Id="CompStartup" />
+    </Feature>
+
+    <!-- ===== UI ===== -->
+
+    <UIRef Id="WixUI_InstallDir" />
+    <WixVariable Id="WixUILicenseRtf" Value="Resources\LICENSE.rtf" />
+
+    <!-- ===== Launch after install ===== -->
+
+    <Property Id="WixShellExecTarget" Value="[INSTALLFOLDER]LoopcastUA.exe" />
+    <CustomAction Id="LaunchApp"
+                  BinaryKey="WixCA"
+                  DllEntry="WixShellExec"
+                  Impersonate="yes"
+                  Return="ignore" />
+
+    <UI>
+      <Publish Dialog="ExitDialog"
+               Control="Finish"
+               Event="DoAction"
+               Value="LaunchApp">
+        WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed
+      </Publish>
+    </UI>
+
+  </Product>
+</Wix>

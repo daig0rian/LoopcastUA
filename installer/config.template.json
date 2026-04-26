@@ -1,0 +1,43 @@
+{
+  "sip": {
+    "server": "",
+    "port": 5060,
+    "transport": "udp",
+    "username": "",
+    "password": "",
+    "passwordPlaintext": false,
+    "conferenceRoom": "8000",
+    "displayName": "",
+    "useRegister": false,
+    "localRtpPort": 16384
+  },
+  "audio": {
+    "captureDeviceId": "default",
+    "opusBitrate": 48000,
+    "opusComplexity": 5,
+    "frameMs": 20,
+    "sampleRate": 48000,
+    "channels": 1
+  },
+  "silenceDetection": {
+    "thresholdDbfs": -50.0,
+    "enterSilenceMs": 1500,
+    "exitSilenceMs": 300
+  },
+  "batch": {
+    "executionTimeoutMs": 5000
+  },
+  "reconnect": {
+    "initialDelayMs": 5000,
+    "maxDelayMs": 60000,
+    "backoffMultiplier": 2.0
+  },
+  "startup": {
+    "initialJitterMs": 5000
+  },
+  "logging": {
+    "directory": "%LOCALAPPDATA%\\PcAudioSipBridge\\logs",
+    "maxFileSizeMb": 10,
+    "maxFiles": 5
+  }
+}

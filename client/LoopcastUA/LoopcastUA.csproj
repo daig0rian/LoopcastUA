@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
+          Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{8B3F1E2A-4C5D-6E7F-8A9B-0C1D2E3F4A5B}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>LoopcastUA</RootNamespace>
+    <AssemblyName>LoopcastUA</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Net" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SIPSorcery" Version="10.0.3" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="Concentus" Version="2.2.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="src\Program.cs" />
+    <Compile Include="src\TrayContext.cs" />
+    <Compile Include="src\Forms\SettingsForm.cs" />
+    <Compile Include="src\Config\AppConfig.cs" />
+    <Compile Include="src\Config\ConfigStore.cs" />
+    <Compile Include="src\Config\ConfigValidator.cs" />
+    <Compile Include="src\Config\DpapiProtector.cs" />
+    <Compile Include="src\Audio\LoopbackCapturer.cs" />
+    <Compile Include="src\Audio\AudioMixer.cs" />
+    <Compile Include="src\Audio\OpusEncoder.cs" />
+    <Compile Include="src\Audio\SilenceDetector.cs" />
+    <Compile Include="src\Sip\SipClient.cs" />
+    <Compile Include="src\Sip\RtpSender.cs" />
+    <Compile Include="src\Batch\BatchRunner.cs" />
+    <Compile Include="src\Infrastructure\BufferPool.cs" />
+    <Compile Include="src\Infrastructure\Logger.cs" />
+    <Compile Include="src\Infrastructure\Strings.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\app.ico" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
