@@ -10,9 +10,14 @@ A Windows tray client that streams NMS alert audio from monitoring PCs to a Free
 
 Network Management Systems (NMS) and monitoring tools play audio alerts on the PCs where they run. If an operator is away from that machine — or if alerts are spread across 20–40 monitoring PCs — alarms can be missed.
 
-LoopcastUA captures the audio output of each monitoring PC and aggregates it into a single conference bridge. Operators listen in from any endpoint and can immediately tell which machine is alerting and what kind of alarm is sounding.
+LoopcastUA captures the audio output of each monitoring PC and aggregates it into a single conference bridge. Operators listen in from any endpoint and can hear what kind of alarm is sounding in real time.
 
-When audio is detected, LoopcastUA can also trigger a script — for example to send an SNMP trap to an upstream NMS — so alerts are forwarded through your existing monitoring infrastructure without relying on operators being present.
+**Identifying which PC is alerting** is handled by the batch execution feature: when audio is detected, LoopcastUA runs a configurable script on that PC — for example to send an SNMP trap or a notification that names the source machine. This works even when no operator is present and is the primary mechanism for per-PC identification.
+
+For environments without an upstream NMS, visual identification of the active talker is also possible through optional FreePBX features:
+
+- **Conference Pro module** (commercial FreePBX add-on) — shows a real-time participant list with a talking indicator in the UCP web interface.
+- **Asterisk AMI** — Asterisk fires `ConfbridgeTalking` events when a participant's audio crosses the VAD threshold. A custom AMI client can consume these events to build a dashboard or trigger notifications.
 
 ```
 [NMS-PC-A] LoopcastUA ─┐
