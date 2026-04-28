@@ -1,17 +1,20 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Threading;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
 namespace LoopcastUA.Audio
 {
-    internal sealed class LoopbackCapturer : IDisposable
+    internal sealed class LoopbackCapturer : ILoopbackCapturer
     {
         private const int TargetSampleRate = 48000;
         private const int FrameMs = 20;
         private const int StereoFrameSamples = TargetSampleRate * FrameMs / 1000 * 2; // 1920
 
+        private readonly string _deviceId;
+        private MMDevice _device;
         private WasapiLoopbackCapture _capture;
         private BufferedWaveProvider _waveBuffer;
         private ISampleProvider _sampleSource;
@@ -20,9 +23,18 @@ namespace LoopcastUA.Audio
 
         public event EventHandler<float[]> StereoFrameReady;
 
+        public LoopbackCapturer(string deviceId = "default")
+        {
+            _deviceId = deviceId ?? "default";
+        }
+
         public void Start()
         {
-            _capture = new WasapiLoopbackCapture();
+            _device = ResolveDevice(_deviceId);
+            _capture = _device != null
+                ? new WasapiLoopbackCapture(_device)
+                : new WasapiLoopbackCapture();
+
             var fmt = _capture.WaveFormat;
 
             _waveBuffer = new BufferedWaveProvider(fmt)
@@ -67,6 +79,9 @@ namespace LoopcastUA.Audio
                 _capture = null;
             }
 
+            _device?.Dispose();
+            _device = null;
+
             _waveBuffer = null;
             _sampleSource = null;
         }
@@ -84,8 +99,7 @@ namespace LoopcastUA.Audio
             while (_running)
             {
                 frameCount++;
-                long targetMs = frameCount * FrameMs;
-                long delay = targetMs - sw.ElapsedMilliseconds;
+                long delay = frameCount * FrameMs - sw.ElapsedMilliseconds;
                 if (delay > 1)
                     Thread.Sleep((int)delay);
 
@@ -97,9 +111,18 @@ namespace LoopcastUA.Audio
             }
         }
 
-        public void Dispose()
+        private static MMDevice ResolveDevice(string id)
         {
-            Stop();
+            if (string.IsNullOrEmpty(id) || id == "default")
+                return null; // WasapiLoopbackCapture() default ctor handles this
+            try
+            {
+                using (var enumerator = new MMDeviceEnumerator())
+                    return enumerator.GetDevice(id);
+            }
+            catch { return null; }
         }
+
+        public void Dispose() => Stop();
     }
 }

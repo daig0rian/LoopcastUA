@@ -79,6 +79,18 @@ namespace LoopcastUA.Infrastructure
         public static string LabelRoom        => Ja ? "会議室番号"            : "Conference room";
         public static string LabelDisplayName => Ja ? "表示名"               : "Display name";
 
+        public static string LabelCaptureMode  => Ja ? "キャプチャモード"       : "Capture mode";
+        public static string CaptureModeDirect   => Ja
+            ? "ダイレクトキャプチャ（音量設定の影響なし）"
+            : "Direct capture (volume-independent)";
+        public static string CaptureModeRendered => Ja
+            ? "レンダードキャプチャ（音量設定に依存）"
+            : "Rendered capture (volume-dependent)";
+
+        public static string CaptureDirectUnsupported(int build) => Ja
+            ? $"Windows 10 20H2 以降が必要です（現在のビルド: {build}）"
+            : $"Requires Windows 10 20H2 or later (current build: {build})";
+
         public static string LabelCaptureDevice => Ja ? "キャプチャデバイス"      : "Capture device";
         public static string LabelOpusBitrate   => Ja ? "Opus ビットレート (bps)" : "Opus bitrate (bps)";
 

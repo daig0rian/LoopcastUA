@@ -23,7 +23,7 @@ namespace LoopcastUA
         private readonly Control _invoker;
 
         private readonly ConfigStore _configStore = new ConfigStore();
-        private readonly LoopbackCapturer _capturer = new LoopbackCapturer();
+        private ILoopbackCapturer _capturer;
         private readonly SilenceDetector _silenceDetector = new SilenceDetector();
         private SipClient _sipClient = new SipClient();
         private OpusEncoder _encoder;
@@ -68,6 +68,7 @@ namespace LoopcastUA
                 config.Logging.MaxFileSizeMb,
                 config.Logging.MaxFiles);
 
+            _capturer = LoopbackCapturerFactory.Create(config);
             _encoder = new OpusEncoder(config.Audio.OpusBitrate, config.Audio.OpusComplexity);
             _batchRunner = new BatchRunner(config);
 
@@ -191,7 +192,11 @@ namespace LoopcastUA
             if (jitter > 0)
                 await Task.Delay(new Random().Next(0, jitter));
 
-            _capturer.Start();
+            // Run capturer.Start() on a thread-pool MTA thread so the STA message loop
+            // remains responsive. ActivateAudioInterfaceAsync internally requires the STA
+            // thread to be free to process COM calls; blocking it via Task.Wait() / Join()
+            // causes E_ILLEGAL_METHOD_CALL (0x8000000E).
+            await Task.Run(() => _capturer.Start());
             _sipClient.Start(config);
 
             // Trim working set after startup completes
@@ -295,6 +300,8 @@ namespace LoopcastUA
                 || a.Sip.Username != b.Sip.Username
                 || a.Sip.Password != b.Sip.Password
                 || a.Sip.ConferenceRoom != b.Sip.ConferenceRoom
+                || a.Audio.CaptureMode != b.Audio.CaptureMode
+                || a.Audio.CaptureDeviceId != b.Audio.CaptureDeviceId
                 || a.Audio.OpusBitrate != b.Audio.OpusBitrate
                 || a.Audio.OpusComplexity != b.Audio.OpusComplexity;
         }
@@ -302,12 +309,19 @@ namespace LoopcastUA
         private void RestartPipeline(AppConfig config)
         {
             _sipConnected = false;
+
+            _capturer.StereoFrameReady -= OnStereoFrame;
             _capturer.Stop();
+            _capturer.Dispose();
+
             _sipClient.Dispose();
             SetState(TrayState.Connecting);
 
             _encoder.Dispose();
             _encoder = new OpusEncoder(config.Audio.OpusBitrate, config.Audio.OpusComplexity);
+
+            _capturer = LoopbackCapturerFactory.Create(config);
+            _capturer.StereoFrameReady += OnStereoFrame;
 
             _sipClient = new SipClient();
             WireSipEvents(_sipClient);

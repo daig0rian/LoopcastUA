@@ -57,7 +57,10 @@
     <Compile Include="src\Config\ConfigStore.cs" />
     <Compile Include="src\Config\ConfigValidator.cs" />
     <Compile Include="src\Config\DpapiProtector.cs" />
+    <Compile Include="src\Audio\ILoopbackCapturer.cs" />
     <Compile Include="src\Audio\LoopbackCapturer.cs" />
+    <Compile Include="src\Audio\ProcessLoopbackCapturer.cs" />
+    <Compile Include="src\Audio\LoopbackCapturerFactory.cs" />
     <Compile Include="src\Audio\AudioMixer.cs" />
     <Compile Include="src\Audio\OpusEncoder.cs" />
     <Compile Include="src\Audio\SilenceDetector.cs" />

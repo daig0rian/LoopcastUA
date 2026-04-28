@@ -28,6 +28,7 @@
 
     internal class AudioConfig
     {
+        public string CaptureMode { get; set; } = "direct"; // "direct" | "rendered"
         public string CaptureDeviceId { get; set; } = "default";
         public int OpusBitrate { get; set; } = 48000;
         public int OpusComplexity { get; set; } = 5;

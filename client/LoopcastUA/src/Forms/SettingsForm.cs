@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
+using LoopcastUA.Audio;
 using LoopcastUA.Config;
 using LoopcastUA.Infrastructure;
 
@@ -15,6 +16,7 @@ namespace LoopcastUA.Forms
         private TextBox _sipServer, _sipUsername, _sipPassword, _sipRoom, _sipDisplayName;
         private NumericUpDown _sipPort;
 
+        private RadioButton _rbDirect, _rbRendered;
         private ComboBox _audioDevice;
         private NumericUpDown _opusBitrate;
 
@@ -90,13 +92,82 @@ namespace LoopcastUA.Forms
 
         private TabPage BuildAudioTab()
         {
+            bool directSupported = LoopbackCapturerFactory.IsDirectCaptureSupported();
+            int currentBuild = directSupported ? 0 : LoopbackCapturerFactory.GetWindowsBuild();
+
             var tab = new TabPage(Strings.TabAudio);
-            var t = MakeTable(2);
-            int r = 0;
+
+            // Custom table: row 0 is taller to fit radio buttons (+warning), rows 1-2 standard
+            var t = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 4, // mode, device, bitrate, filler
+                Padding = new Padding(8),
+            };
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            t.RowStyles.Add(new RowStyle(SizeType.Absolute, directSupported ? 56 : 74));
+            t.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            t.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+            t.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // filler
+
+            // Row 0: capture mode selection
+            t.Controls.Add(new Label
+            {
+                Text = Strings.LabelCaptureMode + ":",
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+            }, 0, 0);
+
+            var modePanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+            };
+
+            _rbDirect = new RadioButton
+            {
+                Text = Strings.CaptureModeDirect,
+                AutoSize = true,
+                Enabled = directSupported,
+            };
+            _rbRendered = new RadioButton
+            {
+                Text = Strings.CaptureModeRendered,
+                AutoSize = true,
+            };
+
+            modePanel.Controls.Add(_rbDirect);
+            modePanel.Controls.Add(_rbRendered);
+
+            if (!directSupported)
+            {
+                modePanel.Controls.Add(new Label
+                {
+                    Text = Strings.CaptureDirectUnsupported(currentBuild),
+                    AutoSize = true,
+                    ForeColor = SystemColors.GrayText,
+                    Font = new Font(SystemFonts.DefaultFont.FontFamily, 7.5f),
+                    Padding = new Padding(18, 0, 0, 0),
+                });
+            }
+
+            t.Controls.Add(modePanel, 1, 0);
+
+            // Row 1: capture device (disabled in Direct mode)
             _audioDevice = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             PopulateAudioDevices();
-            AddRow(t, r++, Strings.LabelCaptureDevice, _audioDevice);
-            _opusBitrate = AddNumeric(t, r++, Strings.LabelOpusBitrate, 8000, 128000, 0, 1000);
+            AddRow(t, 1, Strings.LabelCaptureDevice, _audioDevice);
+
+            // Row 2: Opus bitrate
+            _opusBitrate = AddNumeric(t, 2, Strings.LabelOpusBitrate, 8000, 128000, 0, 1000);
+
+            // Disable device ComboBox when Direct mode is active
+            _rbDirect.CheckedChanged   += (_, __) => _audioDevice.Enabled = !_rbDirect.Checked;
+            _rbRendered.CheckedChanged += (_, __) => _audioDevice.Enabled =  _rbRendered.Checked;
+
             tab.Controls.Add(t);
             return tab;
         }
@@ -151,6 +222,12 @@ namespace LoopcastUA.Forms
             _sipRoom.Text        = cfg.Sip?.ConferenceRoom ?? "";
             _sipDisplayName.Text = cfg.Sip?.DisplayName ?? "";
 
+            string captureMode = cfg.Audio?.CaptureMode ?? "direct";
+            if (captureMode == "direct" && _rbDirect.Enabled)
+                _rbDirect.Checked = true;
+            else
+                _rbRendered.Checked = true;
+
             SelectAudioDevice(cfg.Audio?.CaptureDeviceId ?? "default");
             _opusBitrate.Value = Clamp(cfg.Audio?.OpusBitrate ?? 48000, 8000, 128000);
 
@@ -185,6 +262,7 @@ namespace LoopcastUA.Forms
         private AppConfig BuildConfig()
         {
             var prev = _configStore.Current;
+            string captureMode = _rbDirect.Checked ? "direct" : "rendered";
             string deviceId = _audioDevice.SelectedItem is AudioDeviceItem d ? d.Id : "default";
             string langCode = _uiLanguage.SelectedItem is LangItem l ? l.Code : "auto";
 
@@ -205,6 +283,7 @@ namespace LoopcastUA.Forms
                 },
                 Audio = new AudioConfig
                 {
+                    CaptureMode     = captureMode,
                     CaptureDeviceId = deviceId,
                     OpusBitrate     = (int)_opusBitrate.Value,
                     OpusComplexity  = prev.Audio?.OpusComplexity ?? 5,

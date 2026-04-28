@@ -27,7 +27,8 @@ When audio is detected, LoopcastUA can also trigger a script — for example to 
 
 **Key features:**
 
-- WASAPI loopback capture — grabs PC audio output directly, no virtual cable needed
+- **Direct capture (default)** — uses WASAPI Process Loopback (`ActivateAudioInterfaceAsync`) to capture audio at the OS mix stage, completely independent of the master volume slider. Requires Windows 10 20H2 (build 19042) or later.
+- **Rendered capture (fallback)** — standard WASAPI loopback via NAudio, for Windows 7 SP1 and later. Audio level follows the master volume.
 - Silence detection with hysteresis — fires a configurable script on alert start / alert end
 - Opus 48 kHz / 48 kbps encoding for low-latency, low-bandwidth delivery
 - Exponential backoff auto-reconnect on disconnect
@@ -43,7 +44,7 @@ When audio is detected, LoopcastUA can also trigger a script — for example to 
 
 | Item | Requirement |
 |---|---|
-| OS | Windows 7 SP1 or later (64-bit) |
+| OS | Windows 10 20H2 (build 19042) or later for Direct capture (default); Windows 7 SP1 or later for Rendered capture |
 | Runtime | .NET Framework 4.7.2 or later |
 | Audio | WASAPI loopback-capable audio device |
 | Network | UDP 5060 (SIP) and UDP 10000+ (RTP) reachable to the FreePBX server |
@@ -86,8 +87,8 @@ msbuild LoopcastUA.sln /p:Configuration=Release "/p:Platform=Any CPU"
 ```powershell
 # Run after building the EXE
 cd installer
-powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.0.2
-# Output: installer/bin/Release/LoopcastUA-1.0.2.msi
+powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.1.0
+# Output: installer/bin/Release/LoopcastUA-1.1.0.msi
 ```
 
 ---
@@ -103,7 +104,7 @@ On first launch, the Settings dialog opens automatically. Enter your SIP server 
 ### Silent install (mass deployment)
 
 ```cmd
-msiexec /i LoopcastUA-1.0.2.msi /qn
+msiexec /i LoopcastUA-1.1.0.msi /qn
 ```
 
 After installation, place a per-machine config file at:
@@ -144,6 +145,7 @@ This section is for administrators who need to pre-deploy `config.json` via sile
     "displayName": "NMS-PC-A"
   },
   "audio": {
+    "captureMode": "direct",         // "direct" (Process Loopback, Win10 20H2+, volume-independent) | "rendered" (standard WASAPI, Win7+)
     "opusBitrate": 48000             // bps (8000–128000)
   },
   "silenceDetection": {
@@ -211,10 +213,13 @@ loopcast/
 │           ├── Forms/
 │           │   └── SettingsForm.cs     # Settings dialog (code-first WinForms)
 │           ├── Audio/
-│           │   ├── LoopbackCapturer.cs # WASAPI loopback capture
-│           │   ├── AudioMixer.cs       # Stereo → mono downmix
-│           │   ├── OpusEncoder.cs      # Concentus (pure C# Opus)
-│           │   └── SilenceDetector.cs  # Hysteresis-based silence detection
+│           │   ├── ILoopbackCapturer.cs         # Capturer interface
+│           │   ├── LoopbackCapturerFactory.cs   # Selects Direct or Rendered based on config
+│           │   ├── ProcessLoopbackCapturer.cs   # Direct: WASAPI Process Loopback (Win10 20H2+)
+│           │   ├── LoopbackCapturer.cs          # Rendered: standard WASAPI loopback
+│           │   ├── AudioMixer.cs                # Stereo → mono downmix
+│           │   ├── OpusEncoder.cs               # Concentus (pure C# Opus)
+│           │   └── SilenceDetector.cs           # Hysteresis-based silence detection
 │           ├── Sip/
 │           │   ├── SipClient.cs        # SIPSorcery control and reconnect logic
 │           │   └── RtpSender.cs        # RTP transmission
