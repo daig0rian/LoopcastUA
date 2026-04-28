@@ -2,29 +2,36 @@
 
 [日本語](README.ja.md)
 
-A system-tray Windows client that continuously streams PC audio output to a FreePBX conference bridge over SIP/RTP.
+A Windows tray client that streams NMS alert audio from monitoring PCs to a FreePBX conference bridge over SIP/RTP, so operators can hear alarms from anywhere on the network.
 
 ---
 
-## Overview
+## The problem it solves
 
-LoopcastUA captures whatever is playing on a Windows PC (notification sounds, announcements, etc.), encodes it with the Opus codec, and sends it to a FreePBX ConfBridge — allowing 20–40 machines to feed a shared audio stream simultaneously.
+Network Management Systems (NMS) and monitoring tools play audio alerts on the PCs where they run. If an operator is away from that machine — or if alerts are spread across 20–40 monitoring PCs — alarms can be missed.
+
+LoopcastUA captures the audio output of each monitoring PC and aggregates it into a single conference bridge. Operators listen in from any endpoint and can immediately tell which machine is alerting and what kind of alarm is sounding.
+
+When audio is detected, LoopcastUA can also trigger a script — for example to send an SNMP trap to an upstream NMS — so alerts are forwarded through your existing monitoring infrastructure without relying on operators being present.
 
 ```
-[PC-A] LoopcastUA ─┐
-[PC-B] LoopcastUA ─┤  SIP/RTP (Opus)  ┌─────────────────┐
-[PC-C] LoopcastUA ─┼─────────────────▶│ FreePBX         │──▶ Listeners
-       ...         │                  │ ConfBridge 8000 │
-[PC-N] LoopcastUA ─┘                  └─────────────────┘
+[NMS-PC-A] LoopcastUA ─┐
+[NMS-PC-B] LoopcastUA ─┤  SIP/RTP (Opus)  ┌─────────────────┐
+[NMS-PC-C] LoopcastUA ─┼─────────────────▶│ FreePBX         │──▶ Operators
+           ...         │                  │ ConfBridge 8000 │
+[NMS-PC-N] LoopcastUA ─┘                  └─────────────────┘
+                                                   │
+                              on alert detected    ▼
+                                          [SNMP trap / upstream NMS]
 ```
 
 **Key features:**
 
-- WASAPI loopback capture — grabs the PC's audio output directly, no virtual cable needed
+- WASAPI loopback capture — grabs PC audio output directly, no virtual cable needed
+- Silence detection with hysteresis — fires a configurable script on alert start / alert end
 - Opus 48 kHz / 48 kbps encoding for low-latency, low-bandwidth delivery
-- Silence detection with hysteresis — runs a configurable batch/script on playback start and stop
 - Exponential backoff auto-reconnect on disconnect
-- System-tray icon shows connection state at a glance (yellow = connecting / green = connected / green+waves = playing / red = error)
+- System-tray icon shows connection state at a glance (yellow = connecting / green = connected / green+waves = alerting / red = error)
 - EN / JA bilingual UI — follows system language automatically, with a manual override in Settings
 - MSI installer with silent-install support for GPO mass deployment
 
@@ -79,8 +86,8 @@ msbuild LoopcastUA.sln /p:Configuration=Release "/p:Platform=Any CPU"
 ```powershell
 # Run after building the EXE
 cd installer
-powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.0.0
-# Output: installer/bin/Release/LoopcastUA-1.0.0.msi
+powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.0.2
+# Output: installer/bin/Release/LoopcastUA-1.0.2.msi
 ```
 
 ---
@@ -96,7 +103,7 @@ On first launch, the Settings dialog opens automatically. Enter your SIP server 
 ### Silent install (mass deployment)
 
 ```cmd
-msiexec /i LoopcastUA-1.0.0.msi /qn
+msiexec /i LoopcastUA-1.0.2.msi /qn
 ```
 
 After installation, place a per-machine config file at:
@@ -134,19 +141,19 @@ This section is for administrators who need to pre-deploy `config.json` via sile
     "username": "9001",              // Extension number
     "password": "DPAPI:AQAAn...",    // DPAPI-encrypted password (plaintext also accepted; see below)
     "conferenceRoom": "8000",        // ConfBridge number
-    "displayName": "PC-A-Loopback"
+    "displayName": "NMS-PC-A"
   },
   "audio": {
     "opusBitrate": 48000             // bps (8000–128000)
   },
   "silenceDetection": {
-    "thresholdDbfs": -50.0,          // Silence threshold
-    "enterSilenceMs": 1500,          // How long below threshold before "silence" is declared
-    "exitSilenceMs": 300             // How long above threshold before "playing" is declared
+    "thresholdDbfs": -50.0,          // Alert detection threshold
+    "enterSilenceMs": 1500,          // Silence duration before "alert end" is declared
+    "exitSilenceMs": 300             // Audio duration before "alert start" is declared
   },
   "batch": {
-    "onPlaybackStart": "C:\\scripts\\on_start.bat",
-    "onPlaybackStop":  "C:\\scripts\\on_stop.bat",
+    "onPlaybackStart": "C:\\scripts\\alert_start.bat",
+    "onPlaybackStop":  "C:\\scripts\\alert_stop.bat",
     "executionTimeoutMs": 5000
   }
 }
@@ -169,16 +176,23 @@ For large-scale silent deployments, prepare a per-machine `config.json` and plac
 
 ---
 
-## Silence detection and batch execution
+## Alert detection and script execution
 
-LoopcastUA can run an arbitrary script whenever playback state changes.
+LoopcastUA detects when a monitoring PC starts or stops producing audio and executes a configurable script at each transition. The primary intended use is forwarding alerts to upstream systems without requiring an operator to be present.
 
-| Event | Config key | Example use |
+| Event | Config key | Typical use |
 |---|---|---|
-| Playback starts (silence → audio) | `batch.onPlaybackStart` | Turn on lights, wake screen, send notification |
-| Playback stops (audio → silence) | `batch.onPlaybackStop` | Turn off lights, blank screen |
+| Alert starts (silence → audio) | `batch.onPlaybackStart` | Send SNMP trap to upstream NMS, trigger ticketing system, notify on-call |
+| Alert ends (audio → silence) | `batch.onPlaybackStop` | Clear alert state, send resolution trap |
 
 Supports `.bat`, `.cmd`, `.exe`, and `.ps1`. Use `executionTimeoutMs` to cap execution time.
+
+**Example: sending an SNMP trap on alert start**
+
+```bat
+@echo off
+snmptrap -v 2c -c public 192.168.1.10 "" 1.3.6.1.4.1.99999.1 1.3.6.1.4.1.99999.1.1 s "%COMPUTERNAME% audio alert detected"
+```
 
 ---
 
