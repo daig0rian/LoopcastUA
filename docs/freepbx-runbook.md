@@ -85,10 +85,10 @@ Video Mode:           no video  ✅
 internal_sample_rate=48000
 ```
 
-追加後、Asterisk CLI から反映:
+追加後、**Admin → Asterisk CLI** から反映:
 
-```bash
-asterisk -rx "module reload app_confbridge.so"
+```
+module reload app_confbridge.so
 ```
 
 ---
@@ -146,11 +146,13 @@ extension,name,secret,tech
 2. `full` の **Debug** と **Verbose** のチェックを外す
 3. **Save → Apply Config**
 
-確認:
-```bash
-asterisk -rx "logger show channels"
-# /var/log/asterisk/full が NOTICE WARNING ERROR のみになっていること
+確認 (**Admin → Asterisk CLI**):
+
 ```
+logger show channels
+```
+
+`/var/log/asterisk/full` が `NOTICE WARNING ERROR` のみになっていること。
 
 > **注意:** FreePBX アップデート後にログレベルが元に戻る場合があります。アップデート後は上記コマンドで確認してください。
 
@@ -170,39 +172,36 @@ expire_logs_days = 7
 
 ### ディスク使用量の定期確認
 
-```bash
-# ログディレクトリ
-du -sh /var/log/asterisk/*
+Zabbix agent 等の監視ツールで以下のパスを対象に定期監視することを推奨します。
 
-# MariaDB データディレクトリ
-du -sh /var/lib/mysql/
-
-# 全体
-df -h /
-```
+| 監視対象 | パス |
+|---|---|
+| ルートファイルシステム使用率 | `/` |
+| Asterisk ログ | `/var/log/asterisk/` |
+| MariaDB データ | `/var/lib/mysql/` |
 
 ---
 
-## 動作確認コマンド (SSH)
+## 動作確認コマンド (Admin → Asterisk CLI)
 
-```bash
+```
 # アクティブチャネル確認
-asterisk -rx "pjsip show channels"
+pjsip show channels
 
 # 会議室参加者確認
-asterisk -rx "confbridge list"
+confbridge list
 
 # 会議室参加者の詳細 (発言状態含む)
-asterisk -rx "confbridge list 8000"
+confbridge list 8000
 
 # コーデック確認
-asterisk -rx "core show codecs"
+core show codecs
 
 # Extension 登録状態確認
-asterisk -rx "pjsip show endpoints"
+pjsip show endpoints
 
 # Bridge Profile 確認
-asterisk -rx "confbridge show profile bridge default_bridge"
+confbridge show profile bridge default_bridge
 ```
 
 ---
