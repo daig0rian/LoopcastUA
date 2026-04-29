@@ -31,7 +31,7 @@
 
 FreePBX は既定で Google Analytics による匿名統計を収集します。社内環境では無効化してください。
 
-1. **Admin → Advanced Settings**
+1. **Settings → Advanced Settings**
 2. **「Browser Stats」** を **「No」** に変更
 3. **「Submit」** → **「Apply Config」**
 
@@ -133,6 +133,58 @@ extension,name,secret,tech
 1. **Admin → Firewall**
 2. 受信許可する送信元を社内セグメントに限定
 3. SIP (UDP 5060) および RTP ポート範囲 (UDP 10000-20000) を開放
+
+---
+
+## 7. 長期運用設定
+
+### Asterisk ログレベルの絞り込み
+
+デフォルトでは `full` ログに DEBUG・VERBOSE が含まれ、常時接続環境では大量のログが蓄積します。
+
+1. **Settings → Asterisk Log File Settings**
+2. `full` の **Debug** と **Verbose** のチェックを外す
+3. **Save → Apply Config**
+
+確認:
+```bash
+asterisk -rx "logger show channels"
+# /var/log/asterisk/full が NOTICE WARNING ERROR のみになっていること
+```
+
+> **注意:** FreePBX アップデート後にログレベルが元に戻る場合があります。アップデート後は上記コマンドで確認してください。
+
+### MariaDB バイナリログの保持期間設定
+
+バイナリログが無期限に蓄積するのを防ぎます。
+
+```bash
+sudo mysql -u root -e "SHOW VARIABLES LIKE 'expire_logs_days';"
+```
+
+未設定または 0 の場合は `/etc/mysql/mariadb.conf.d/50-server.cnf` の `[mysqld]` セクションに追加:
+
+```ini
+expire_logs_days = 7
+```
+
+反映:
+```bash
+sudo systemctl restart mariadb
+```
+
+### ディスク使用量の定期確認
+
+```bash
+# ログディレクトリ
+du -sh /var/log/asterisk/*
+
+# MariaDB データディレクトリ
+du -sh /var/lib/mysql/
+
+# 全体
+df -h /
+```
 
 ---
 
