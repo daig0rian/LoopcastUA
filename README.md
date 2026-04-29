@@ -59,7 +59,7 @@ For environments without an upstream NMS, visual identification of the active ta
 | Item | Recommended |
 |---|---|
 | Distribution | FreePBX 17 (Debian 12-based) |
-| Asterisk | 20 (LTS) |
+| Asterisk | 22 (LTS) |
 | vCPU | 4 |
 | RAM | 4 GB |
 | NIC | 100 Mbps |

@@ -59,7 +59,7 @@ LoopcastUA は各監視 PC の音声出力をキャプチャし、1 つの会議
 | 項目 | 推奨値 |
 |---|---|
 | ディストリビューション | FreePBX 17 (Debian 12 ベース) |
-| Asterisk | 20 (LTS) |
+| Asterisk | 22 (LTS) |
 | vCPU | 4 |
 | RAM | 4 GB |
 | NIC | 100 Mbps |

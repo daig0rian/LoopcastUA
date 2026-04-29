@@ -1,28 +1,31 @@
 # FreePBX セットアップ手順書
 
-対象: FreePBX 17 (OSO) + Asterisk 20 + Rocky Linux
+対象: FreePBX 17 (OSO) + Asterisk 22 + Debian 12
 
 ---
 
 ## 1. インストール
 
 ### VM スペック (本番)
+
 | 項目 | 値 |
 |---|---|
-| vCPU | 4 |
+| vCPU | 2〜4 |
 | RAM | 4 GB |
 | ディスク | 100 GB |
 | NIC | 100Mbps |
 
 ### インストーラー選択
-- FreePBX Distro 17 ISO をダウンロード
-- 起動後の Spice インストーラーで以下を選択:
+
+- FreePBX 17 Distro ISO を起動
+- インストーラーで以下を選択:
   - **OSO** (Open Source Only) — 商用 Sangoma モジュール不要のため
-  - **Asterisk 20** (LTS、codec_opus.so 標準同梱)
+  - **Asterisk 22** (LTS、codec_opus.so 標準同梱)
 
 ### インストール完了後
-- TTY に sangoma ユーザーでログインし IP アドレスを確認
+
 - ブラウザで `http://<IP>/` を開く → FreePBX ダッシュボード
+- 管理者アカウント (admin) の初回設定を完了させる
 
 ---
 
@@ -35,33 +38,10 @@
 
 ---
 
-## 3. Extension 作成 (一括登録)
-
-### 単体登録
-1. **Connectivity → Extensions → Add Extension → Add New SIP [chan_pjsip] Extension**
-2. 設定値:
-   - User Extension: `9001` (9001〜9040)
-   - Display Name: `PC-XXXXX-Loopback` (PC 識別名)
-   - Secret: ランダム 16 文字以上のパスワード
-3. **Submit → Apply Config**
-
-### 一括登録 (40台展開時)
-1. **Admin → Bulk Handler**
-2. **Import → Extensions** で CSV アップロード
-3. CSV フォーマット:
-   ```
-   extension,name,secret,tech
-   9001,PC-A-Loopback,<password>,pjsip
-   9002,PC-B-Loopback,<password>,pjsip
-   ...
-   ```
-4. `tools/generate_extensions.py` で CSV 生成 (予定)
-
----
-
-## 4. ConfBridge 会議室 8000 の設定
+## 3. ConfBridge 会議室 8000 の設定
 
 ### 会議室作成
+
 1. **Applications → Conferences → Add Conference**
 2. 設定値:
    - Conference Number: **8000**
@@ -73,21 +53,61 @@
 3. **Submit → Apply Config**
 
 ### Bridge Profile (default_bridge) の確認
-GUI に Internal Sample Rate の設定項目なし。Asterisk CLI で確認:
-```
-confbridge show profile bridge default_bridge
-```
-確認済みデフォルト値:
-- **Mixing Interval: 20** ✅ (変更不要)
-- **Internal Sample Rate: auto** — 全クライアントが Opus 48kHz の場合は実質 48000 で動作するためテスト環境では許容
-- **Video Mode: no video** ✅
 
-### Internal Sample Rate を本番で明示的に 48000 に設定する場合
-**Admin → Config Edit → confbridge.conf** を開き、`default_bridge` セクションに以下を追加:
+`default_bridge` の実測値 (Asterisk CLI `confbridge show profile bridge default_bridge`):
+
 ```
+Name:                 default_bridge
+Internal Sample Rate: auto
+Mixing Interval:      20        ← LoopcastUA の 20ms フレームと一致 ✅
+Record Conference:    no
+Max Members:          No Limit
+Video Mode:           no video  ✅
+```
+
+- **Mixing Interval: 20** — LoopcastUA のフレーム長と一致しており変更不要
+- **Internal Sample Rate: auto** — 全クライアントが Opus 48kHz で接続するため実質 48kHz で動作、変更不要
+- **Video Mode: no video** — 音声のみのため変更不要
+
+### Internal Sample Rate を明示的に 48000 に固定する場合 (任意)
+
+**Admin → Config Edit → confbridge.conf** を開き、`[default_bridge]` セクションに以下を追加:
+
+```ini
 internal_sample_rate=48000
 ```
-追加後、Asterisk CLI から `module reload app_confbridge.so` を実行して反映。
+
+追加後、Asterisk CLI から反映:
+
+```bash
+asterisk -rx "module reload app_confbridge.so"
+```
+
+---
+
+## 4. Extension 作成
+
+### 単体登録
+
+1. **Connectivity → Extensions → Add Extension → Add New SIP [chan_pjsip] Extension**
+2. 設定値:
+   - User Extension: `9001` (9001〜9040)
+   - Display Name: `NMS-PC-A` (PC 識別名)
+   - Secret: ランダム 16 文字以上のパスワード
+3. **Submit → Apply Config**
+
+### 一括登録 (40台展開時)
+
+1. **Admin → Bulk Handler**
+2. **Import → Extensions** で CSV アップロード
+3. CSV フォーマット:
+
+```
+extension,name,secret,tech
+9001,NMS-PC-A,<password>,pjsip
+9002,NMS-PC-B,<password>,pjsip
+...
+```
 
 ---
 
@@ -108,7 +128,7 @@ internal_sample_rate=48000
 
 ---
 
-## 動作確認コマンド (SSH / TTY)
+## 動作確認コマンド (SSH)
 
 ```bash
 # アクティブチャネル確認
@@ -117,11 +137,17 @@ asterisk -rx "pjsip show channels"
 # 会議室参加者確認
 asterisk -rx "confbridge list"
 
+# 会議室参加者の詳細 (発言状態含む)
+asterisk -rx "confbridge list 8000"
+
 # コーデック確認
 asterisk -rx "core show codecs"
 
 # Extension 登録状態確認
 asterisk -rx "pjsip show endpoints"
+
+# Bridge Profile 確認
+asterisk -rx "confbridge show profile bridge default_bridge"
 ```
 
 ---
