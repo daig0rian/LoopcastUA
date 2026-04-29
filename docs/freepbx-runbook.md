@@ -27,6 +27,14 @@
 - ブラウザで `http://<IP>/` を開く → FreePBX ダッシュボード
 - 管理者アカウント (admin) の初回設定を完了させる
 
+### 匿名ブラウザ統計の無効化 (企業内利用時は必須)
+
+FreePBX は既定で Google Analytics による匿名統計を収集します。社内環境では無効化してください。
+
+1. **Admin → Advanced Settings**
+2. **「Browser Stats」** を **「No」** に変更
+3. **「Submit」** → **「Apply Config」**
+
 ---
 
 ## 2. Opus コーデック有効化
