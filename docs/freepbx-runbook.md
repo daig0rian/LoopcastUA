@@ -159,18 +159,13 @@ asterisk -rx "logger show channels"
 バイナリログが無期限に蓄積するのを防ぎます。
 
 ```bash
-sudo mysql -u root -e "SHOW VARIABLES LIKE 'expire_logs_days';"
+sudo mysql -u root -e "SHOW VARIABLES LIKE 'expire_logs_days'; SHOW VARIABLES LIKE 'binlog_expire_logs_seconds';"
 ```
 
-未設定または 0 の場合は `/etc/mysql/mariadb.conf.d/50-server.cnf` の `[mysqld]` セクションに追加:
+FreePBX 17 のインストーラーは既定で **10 日 (864000 秒)** を設定します。値が 0 の場合のみ `/etc/mysql/mariadb.conf.d/50-server.cnf` の `[mysqld]` セクションに追加して `sudo systemctl restart mariadb` で反映してください:
 
 ```ini
 expire_logs_days = 7
-```
-
-反映:
-```bash
-sudo systemctl restart mariadb
 ```
 
 ### ディスク使用量の定期確認
